@@ -26,7 +26,8 @@ app.MapGet("/api/script", () =>
     return "script works!";
 });
 
-app.MapPost("/api/execute-a-export-db-sql", async (HttpRequest request) =>
+app.MapPost("/api/execute-a-export-db-sql",
+    async (HttpRequest request, string pathToExportBakInServer) =>
 {
     using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
     {
@@ -34,13 +35,13 @@ app.MapPost("/api/execute-a-export-db-sql", async (HttpRequest request) =>
         // Read the raw file as a CMD `string` command.
         string cmdCommandTextString = await reader.ReadToEndAsync();
 
-        RunCmdCommand(cmdCommandTextString);
+        await RunCmdCommand(cmdCommandTextString);
 
-        return cmdCommandTextString;
+        return ShareFileDownload(pathToExportBakInServer, "application/octet-stream");
     }
 });
 
-void RunCmdCommand(string cmdCommandTextString)
+async Task<Process> RunCmdCommand(string cmdCommandTextString)
 {
     var process = new ProcessStartInfo();
     process.UseShellExecute = true;
@@ -50,7 +51,13 @@ void RunCmdCommand(string cmdCommandTextString)
     process.Verb = "runas";
     process.Arguments = "/c " + cmdCommandTextString;
     process.WindowStyle = ProcessWindowStyle.Normal;
-    Process.Start(process);
+    
+    return Process.Start(process);
+}
+
+IResult ShareFileDownload(string filePathToShare, string mimeType)
+{
+    return Results.File(filePathToShare, contentType: mimeType);
 }
 
 // Tutorial down here: ------------------------------------------- TODO: remove.
