@@ -46,9 +46,10 @@ void RunCmdCommand(string cmdCommandTextString)
     process.UseShellExecute = true;
     process.WorkingDirectory = @"C:\Windows\System32";
     process.FileName = @"C:\Windows\System32\cmd.exe";
+    //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
     process.Verb = "runas";
     process.Arguments = "/c " + cmdCommandTextString;
-    process.WindowStyle = ProcessWindowStyle.Hidden;
+    process.WindowStyle = ProcessWindowStyle.Normal;
     Process.Start(process);
 }
 
