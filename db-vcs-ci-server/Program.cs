@@ -35,8 +35,10 @@ app.MapPost("/api/execute-a-export-db-sql",
         // Read the raw file as a CMD `string` command.
         string cmdCommandTextString = await reader.ReadToEndAsync();
 
+        // Execute the raw command given, to create a `.bak` file of the database.
         await RunCmdCommand(cmdCommandTextString);
 
+        // Share the `.bak` file via download.
         return ShareFileDownload(pathToExportBakInServer, "application/octet-stream");
     }
 });
