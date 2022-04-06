@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -21,6 +23,18 @@ app.UseHttpsRedirection();
 app.MapGet("/api/script", () =>
 {
     return "script works!";
+});
+
+app.MapPost("/api/execute-a-export-db-sql", async (HttpRequest request) =>
+{
+    //Do something with the file
+
+    using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
+    {
+        var textFromBody = await reader.ReadToEndAsync();
+        return textFromBody;
+    }
+
 });
 
 // Tutorial down here: ------------------------------------------- TODO: remove.
