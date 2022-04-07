@@ -27,9 +27,10 @@ app.MapGet("/api/script", () =>
 });
 
 const string WORKING_DIRECTORY = @"C:\Windows\System32";
-
+int EXIT_CODE = 0;
+    
 app.MapPost("/api/execute-cmd-command",
-    async (HttpRequest request, string workingDirectory) =>
+    async (HttpContext context, HttpRequest request, string workingDirectory) =>
 {
     if (workingDirectory == null)
     {
@@ -54,8 +55,23 @@ app.MapPost("/api/execute-cmd-command",
         commandOutput += Environment.NewLine;
         commandOutput += await RunCmdCommand(cmdCommandTextString);
 
-        // Return the raw output of the command.
-        return commandOutput;
+        // Check result exitcode.
+        if (EXIT_CODE != 0)
+        {
+
+            // The command has exited with an error.
+            IResult result = Results.Text(commandOutput);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return result.ExecuteAsync(context);
+        }
+        else
+        {
+
+            // Return the raw output of the command.
+            IResult result = Results.Text(commandOutput);
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            return result.ExecuteAsync(context);
+        }
     }
 });
 
@@ -81,6 +97,7 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     string err = process.StandardError.ReadToEnd();
 
     process.WaitForExit();
+    EXIT_CODE = process.ExitCode;
 
     return output + err;
 }
