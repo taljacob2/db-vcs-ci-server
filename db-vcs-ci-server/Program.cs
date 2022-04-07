@@ -42,6 +42,7 @@ app.MapPost("/api/execute-cmd-command",
     using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
     {
 
+        // Sumarizes all output.
         string commandOutput = "";
 
         // Read the raw file as a CMD `string` command.
@@ -69,7 +70,7 @@ app.MapPost("/api/execute-cmd-command",
 
             // Return the raw output of the command.
             IResult result = Results.Text(commandOutput);
-            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.StatusCode = StatusCodes.Status200OK;            
             return result.ExecuteAsync(context);
         }
     }
