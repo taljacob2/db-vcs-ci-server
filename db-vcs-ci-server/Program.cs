@@ -26,41 +26,77 @@ app.MapGet("/api/script", () =>
     return "script works!";
 });
 
-app.MapPost("/api/execute-a-export-db-sql",
-    async (HttpRequest request, string pathToExportBakInServer) =>
+const string WORKING_DIRECTORY = @"C:\Windows\System32";
+
+app.MapPost("/api/execute-cmd-command",
+    async (HttpRequest request, string workingDirectory) =>
 {
+    if (workingDirectory == null)
+    {
+
+        // Default working-directory is `WORKING_DIRECTORY`.
+        workingDirectory = WORKING_DIRECTORY;
+    }
+
     using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
     {
+
+        string commandOutput = "";
 
         // Read the raw file as a CMD `string` command.
         string cmdCommandTextString = await reader.ReadToEndAsync();
 
-        // Execute the raw command given, to create a `.bak` file of the database.
-        await RunCmdCommand(cmdCommandTextString);
+        // Create an empty directory for the requested working-directory.
+        commandOutput += Environment.NewLine;
+        commandOutput += await RunCmdCommand($"mkdir {workingDirectory}");
 
-        // Share the `.bak` file via download.
-        return ShareFileDownload(pathToExportBakInServer, "application/octet-stream");
+        // Execute the raw command given.
+        commandOutput += Environment.NewLine;
+        commandOutput += await RunCmdCommand(cmdCommandTextString);
+
+        // Return the raw output of the command.
+        return commandOutput;
     }
 });
 
-async Task<Process> RunCmdCommand(string cmdCommandTextString)
-{
-    var process = new ProcessStartInfo();
-    process.UseShellExecute = true;
-    process.WorkingDirectory = @"C:\Windows\System32";
-    process.FileName = @"C:\Windows\System32\cmd.exe";
-    //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
-    process.Verb = "runas";
-    process.Arguments = "/c " + cmdCommandTextString;
-    process.WindowStyle = ProcessWindowStyle.Normal;
-    
-    return Process.Start(process);
+async Task<string> RunCmdCommand(string cmdCommandTextString,
+    string workingDirectoryPath = WORKING_DIRECTORY)
+{   
+    var process = new Process();
+
+    process.StartInfo.WorkingDirectory = workingDirectoryPath;
+    process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
+    //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
+    process.StartInfo.Verb = "runas";
+    process.StartInfo.Arguments = "/c " + cmdCommandTextString;
+    process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+
+    process.StartInfo.UseShellExecute = false;
+    process.StartInfo.RedirectStandardOutput = true;
+    process.StartInfo.RedirectStandardError = true;
+
+    process.Start();
+
+    string output = process.StandardOutput.ReadToEnd();
+    string err = process.StandardError.ReadToEnd();
+
+    process.WaitForExit();
+
+    return output + err;
 }
 
 IResult ShareFileDownload(string filePathToShare, string mimeType)
 {
     return Results.File(filePathToShare, contentType: mimeType);
 }
+
+/// <summary>
+/// Share a file via a download.
+/// </summary>
+app.MapGet("/api/download-file", (string filePathInServer, string mimeType) =>
+{
+    return ShareFileDownload(filePathInServer, mimeType);
+});
 
 // Tutorial down here: ------------------------------------------- TODO: remove.
 
