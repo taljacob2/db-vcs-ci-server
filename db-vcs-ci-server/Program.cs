@@ -20,12 +20,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ---------- Controllers ---------- 
-
-app.MapGet("/api/script", () =>
-{
-    return "script works!";
-});
+// ---------- Controller ---------- 
 
 const string WORKING_DIRECTORY = @"C:\Windows\System32";
 int CMD_COMMAND_EXIT_CODE = 0;
@@ -210,30 +205,4 @@ IResult ShareFileDownload(string filePathToShare, string mimeType)
     return Results.File(filePathToShare, contentType: mimeType);
 }
 
-// Tutorial down here: ------------------------------------------- TODO: remove.
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-       new WeatherForecast
-       (
-           DateTime.Now.AddDays(index),
-           Random.Shared.Next(-20, 55),
-           summaries[Random.Shared.Next(summaries.Length)]
-       ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.Run();
-
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
