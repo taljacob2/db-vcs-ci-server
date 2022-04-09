@@ -261,7 +261,7 @@ IResult ShareFileDownload(string filePathToShare, string mimeType)
 }
 
 
-app.MapPost("/api/execute-cmd-command",
+app.MapPost("/api/upload-file",
     async (HttpContext context, HttpRequest request, string workingDirectory) =>
     {
         if (workingDirectory == null)
@@ -271,7 +271,7 @@ app.MapPost("/api/execute-cmd-command",
             workingDirectory = WORKING_DIRECTORY;
         }
 
-        using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
+        using (var reader = new BinaryReader(request.Body)
         {
 
             // Sumarizes all output.
