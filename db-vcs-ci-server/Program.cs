@@ -260,4 +260,50 @@ IResult ShareFileDownload(string filePathToShare, string mimeType)
     return Results.File(filePathToShare, contentType: mimeType);
 }
 
+
+app.MapPost("/api/execute-cmd-command",
+    async (HttpContext context, HttpRequest request, string workingDirectory) =>
+    {
+        if (workingDirectory == null)
+        {
+
+            // Default working-directory is `WORKING_DIRECTORY`.
+            workingDirectory = WORKING_DIRECTORY;
+        }
+
+        using (var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8))
+        {
+
+            // Sumarizes all output.
+            string commandOutput = "";
+
+            // Read the raw file as a CMD `string` command.
+            string cmdCommandTextString = await reader.ReadToEndAsync();
+
+            // Create an empty directory for the requested working-directory.
+            commandOutput += Environment.NewLine;
+            commandOutput += await RunCmdCommand($"mkdir {workingDirectory}");
+
+            // Execute the raw command given.
+            commandOutput += Environment.NewLine;
+            commandOutput += await RunCmdCommand(cmdCommandTextString);
+
+            // Check result exitcode.
+            if (CMD_COMMAND_EXIT_CODE != 0)
+            {
+
+                // The command has exited with an error.
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return context.Response.WriteAsync(commandOutput);
+            }
+            else
+            {
+
+                // Return the raw output of the command.
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                return context.Response.WriteAsync(commandOutput);
+            }
+        }
+    }).Accepts<IFormFile>("application/octet-stream");
+
 app.Run();
