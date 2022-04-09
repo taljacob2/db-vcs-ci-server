@@ -82,6 +82,7 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
 {
     ExtractCommandAndArgs(cmdCommandTextString, out string command,
         out List<string> args);
+    string commandArgsAsString = ConvertCommandArgsToLargeString(args);
     string cmdCommandFilePath = CreateBatchFile(command);
 
     var process = new Process();
@@ -90,7 +91,8 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
     //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
     process.StartInfo.Verb = "runas"; // Run as administrator.
-    process.StartInfo.Arguments = "/c " + $"{cmdCommandFilePath}";
+    process.StartInfo.Arguments =
+        "/c " + $"{cmdCommandFilePath}{commandArgsAsString}";
     process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
     process.StartInfo.UseShellExecute = false;
@@ -147,6 +149,17 @@ void ExtractCommandAndArgs(string cmdCommandTextString, out string command,
             break;
         }
     }
+}
+
+string ConvertCommandArgsToLargeString(List<string> args)
+{
+    StringBuilder stringBuilder = new StringBuilder();
+    foreach(string arg in args)
+    {
+        stringBuilder.Append(" " + arg);
+    }
+
+    return stringBuilder.ToString();
 }
 
 /// <summary>
