@@ -82,7 +82,7 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
 {
     ExtractCommandAndArgs(cmdCommandTextString, out string command,
         out List<string> args);
-    string cmdCommandFileName = CreateBatchFile(command, workingDirectoryPath);
+    string cmdCommandFilePath = CreateBatchFile(command);
 
     var process = new Process();
 
@@ -90,7 +90,7 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
     //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
     process.StartInfo.Verb = "runas"; // Run as administrator.
-    process.StartInfo.Arguments = "/c " + $"{cmdCommandFileName}";
+    process.StartInfo.Arguments = "/c " + $"{cmdCommandFilePath}";
     process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
     process.StartInfo.UseShellExecute = false;
@@ -108,7 +108,7 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     CMD_COMMAND_EXIT_CODE = process.ExitCode;
 
     // Delete the command file after its use.
-    DeleteFile(cmdCommandFileName);
+    DeleteFile(cmdCommandFilePath);
 
     return output + err;
 }
@@ -153,13 +153,17 @@ void ExtractCommandAndArgs(string cmdCommandTextString, out string command,
 ///     Private. Use with caution.
 /// </summary>
 string CreateBatchFile(string command,
-    string workingDirectoryPath = WORKING_DIRECTORY,
+    string workingDirectoryPath = "",
     string cmdCommandFileName = CMD_COMMAND_FILE_NAME)
 {
+    if (workingDirectoryPath == "")
+    {
+        workingDirectoryPath = Directory.GetCurrentDirectory();
+    }
 
     // Create the file, or overwrite if the file exists.
-    using (FileStream fileStream = 
-        File.Create($"{workingDirectoryPath}/{cmdCommandFileName}"))
+    string cmdCommandFilePath = $"{workingDirectoryPath}/{cmdCommandFileName}";
+    using (FileStream fileStream = File.Create(cmdCommandFilePath))
     {
 
         // Create content to the file.
@@ -169,7 +173,7 @@ string CreateBatchFile(string command,
         fileStream.Write(fileContent, 0, fileContent.Length);
     }
 
-    return cmdCommandFileName;
+    return cmdCommandFilePath;
 }
 
 void DeleteFile(string cmdCommandFileName)
