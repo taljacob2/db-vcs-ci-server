@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,7 @@ app.MapGet("/api/script", () =>
 
 const string WORKING_DIRECTORY = @"C:\Windows\System32";
 int CMD_COMMAND_EXIT_CODE = 0;
+const string CMD_COMMAND_FILE_NAME = "db-vcs-ci-server-command.bat";
 
 
 app.MapPost("/api/execute-cmd-command",
@@ -80,14 +82,15 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
 {
     ExtractCommandAndArgs(cmdCommandTextString, out string command,
         out List<string> args);
+    string cmdCommandFileName = CreateBatchFile(command, workingDirectoryPath);
 
     var process = new Process();
 
     process.StartInfo.WorkingDirectory = workingDirectoryPath;
     process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
     //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
-    process.StartInfo.Verb = "runas";
-    process.StartInfo.Arguments = "/c " + command;
+    process.StartInfo.Verb = "runas"; // Run as administrator.
+    process.StartInfo.Arguments = "/c " + $"{cmdCommandFileName}";
     process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
     process.StartInfo.UseShellExecute = false;
@@ -100,7 +103,12 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     string err = process.StandardError.ReadToEnd();
 
     process.WaitForExit();
+
+    // Update the exit-code variable.
     CMD_COMMAND_EXIT_CODE = process.ExitCode;
+
+    // Delete the command file after its use.
+    DeleteFile(cmdCommandFileName);
 
     return output + err;
 }
@@ -138,6 +146,37 @@ void ExtractCommandAndArgs(string cmdCommandTextString, out string command,
         {
             break;
         }
+    }
+}
+
+/// <summary>
+///     Private. Use with caution.
+/// </summary>
+string CreateBatchFile(string command,
+    string workingDirectoryPath = WORKING_DIRECTORY,
+    string cmdCommandFileName = CMD_COMMAND_FILE_NAME)
+{
+
+    // Create the file, or overwrite if the file exists.
+    using (FileStream fileStream = 
+        File.Create($"{workingDirectoryPath}/{cmdCommandFileName}"))
+    {
+
+        // Create content to the file.
+        byte[] fileContent = new UTF8Encoding(true).GetBytes(command);
+
+        // Insert content to the file.
+        fileStream.Write(fileContent, 0, fileContent.Length);
+    }
+
+    return cmdCommandFileName;
+}
+
+void DeleteFile(string cmdCommandFileName)
+{
+    if (File.Exists(cmdCommandFileName))
+    {
+        File.Delete(cmdCommandFileName);
     }
 }
 
@@ -181,4 +220,3 @@ internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
-
