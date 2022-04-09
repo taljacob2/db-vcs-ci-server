@@ -25,7 +25,7 @@ Implemented in .NET Core 6 Minimal Api.
 
 For debugging cmd window,
 you can navigate to [`db-vcs-ci-server/Program.cs`](/db-vcs-ci-server/Program.cs),
-and change the lines from:
+and in `RunCmdCommand` function change the lines from:
 ```csharp
 process.WindowStyle = ProcessWindowStyle.Hidden;
 process.StartInfo.UseShellExecute = false;
