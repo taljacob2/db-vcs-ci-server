@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,15 +77,18 @@ app.MapPost("/api/execute-cmd-command",
 
 async Task<string> RunCmdCommand(string cmdCommandTextString,
     string workingDirectoryPath = WORKING_DIRECTORY)
-{   
+{
+    ExtractCommandAndArgs(cmdCommandTextString, out string command,
+        out List<string> args);
+
     var process = new Process();
 
     process.StartInfo.WorkingDirectory = workingDirectoryPath;
     process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
     //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
     process.StartInfo.Verb = "runas";
-    process.StartInfo.Arguments = "/c " + cmdCommandTextString;
-    process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+    process.StartInfo.Arguments = "/c " + command;
+    process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
     process.StartInfo.UseShellExecute = false;
     process.StartInfo.RedirectStandardOutput = true;
@@ -99,6 +103,42 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
     CMD_COMMAND_EXIT_CODE = process.ExitCode;
 
     return output + err;
+}
+
+void ExtractCommandAndArgs(string cmdCommandTextString, out string command,
+    out List<string> args)
+{
+    string flag = @"&ARGS[]=";
+    command = cmdCommandTextString;
+    args = new List<string>();
+    if (!cmdCommandTextString.Contains(flag)) { return; }
+
+
+    // There are arguments in the given command, we need to extract them.
+    int firstArgIndex = cmdCommandTextString.IndexOf(flag);
+    command = cmdCommandTextString.Substring(0, firstArgIndex);
+    string argsAsString = cmdCommandTextString.Substring(firstArgIndex);
+
+    while (true)
+    {
+        string argsAsStringWithoutFirstArg =
+            argsAsString.Substring(flag.Length);
+        string arg = argsAsStringWithoutFirstArg;
+
+        if (argsAsStringWithoutFirstArg.Contains(flag))
+        {
+            arg = argsAsStringWithoutFirstArg.Substring(0,
+                argsAsStringWithoutFirstArg.IndexOf(flag));
+        }
+
+        args.Add(arg); // Insert the extracted arg to list.
+
+        argsAsString = argsAsString.Substring(flag.Length + arg.Length);
+        if (argsAsStringWithoutFirstArg.Length - arg.Length == 0)
+        {
+            break;
+        }
+    }
 }
 
 /// <summary>
