@@ -24,13 +24,24 @@ Implemented in .NET Core 6 Minimal Api.
 ### Debugging CMD
 
 For debugging cmd window,
-you can navigate to [`db-vcs-ci-server/Program.cs` line 55](https://github.com/taljacob2/db-vcs-ci-server/blob/22db4357ed0bbbd2026d1de739e8500b2d25a2a2/db-vcs-ci-server/Program.cs#L55),
-and change the line from:
+you can navigate to [`db-vcs-ci-server/Program.cs`](/db-vcs-ci-server/Program.cs),
+and change the lines from:
 ```csharp
 process.WindowStyle = ProcessWindowStyle.Hidden;
+process.StartInfo.UseShellExecute = false;
+process.StartInfo.RedirectStandardOutput = true;
+process.StartInfo.RedirectStandardError = true;
 ```
 to
 ```csharp
 process.WindowStyle = ProcessWindowStyle.Normal;
+process.StartInfo.UseShellExecute = true;
+process.StartInfo.RedirectStandardOutput = false;
+process.StartInfo.RedirectStandardError = false;
+```
+and comment-out the lines:
+```csharp
+string output = process.StandardOutput.ReadToEnd();
+string err = process.StandardError.ReadToEnd();
 ```
 so you will view the cmd window launching.
