@@ -11,12 +11,12 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+//// Configure the HTTP request pipeline.
+//if (app.Environment.IsDevelopment())
+//{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseHttpsRedirection();
 
@@ -26,6 +26,13 @@ const string WORKING_DIRECTORY = @"C:\Windows\System32";
 int CMD_COMMAND_EXIT_CODE = 0;
 const string CMD_COMMAND_FILE_NAME = "db-vcs-ci-server-command.bat";
 
+/// <summary>
+///     For tests.
+/// </summary>
+app.MapGet("/api/test", () =>
+{
+    return "test works!";
+});
 
 app.MapPost("/api/execute-cmd-command",
     async (HttpContext context, HttpRequest request, string workingDirectory) =>
