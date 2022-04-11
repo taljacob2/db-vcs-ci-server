@@ -23,8 +23,8 @@ app.UseHttpsRedirection();
 // ---------- Controller ---------- 
 
 const string WORKING_DIRECTORY = @"C:\Windows\System32";
-int CMD_COMMAND_EXIT_CODE = 0;
-const string CMD_COMMAND_FILE_NAME = "db-vcs-ci-server-command.bat";
+int COMMAND_EXIT_CODE = 0;
+const string CMD_COMMAND_FILE_NAME = "db-vcs-ci-server-command";
 
 /// <summary>
 ///     For tests.
@@ -34,8 +34,9 @@ app.MapGet("/api/test", () =>
     return "test works!";
 });
 
-app.MapPost("/api/execute-cmd-command",
-    async (HttpContext context, HttpRequest request, string workingDirectory) =>
+app.MapPost("/api/execute-command",
+    async (HttpContext context, HttpRequest request, string workingDirectory,
+    string cmdOrPsOrCustomPathToExecutable, string cmdOrPsOrCustomFileExtension) =>
     {
         if (workingDirectory == null)
         {
@@ -50,19 +51,20 @@ app.MapPost("/api/execute-cmd-command",
             // Sumarizes all output.
             string commandOutput = "";
 
-            // Read the raw file as a CMD `string` command.
-            string cmdCommandTextString = await reader.ReadToEndAsync();
+            // Read the raw file as a `string` command.
+            string commandTextString = await reader.ReadToEndAsync();
 
             // Create an empty directory for the requested working-directory.
             commandOutput += Environment.NewLine;
-            commandOutput += await RunCmdCommand($"mkdir {workingDirectory}");
+            commandOutput += await RunCommand("cmd", "cmd", $"mkdir {workingDirectory}");
 
             // Execute the raw command given.
             commandOutput += Environment.NewLine;
-            commandOutput += await RunCmdCommand(cmdCommandTextString);
+            commandOutput += await RunCommand(cmdOrPsOrCustomPathToExecutable,
+                cmdOrPsOrCustomFileExtension, commandTextString);
 
             // Check result exitcode.
-            if (CMD_COMMAND_EXIT_CODE != 0)
+            if (COMMAND_EXIT_CODE != 0)
             {
 
                 // The command has exited with an error.
@@ -79,22 +81,45 @@ app.MapPost("/api/execute-cmd-command",
         }
     }).Accepts<IFormFile>("text/plain");
 
-async Task<string> RunCmdCommand(string cmdCommandTextString,
+async Task<string> RunCommand(string cmdOrPsOrCustomPathToExecutable,
+    string cmdOrPsOrCustomFileExtension,
+    string commandTextString,
     string workingDirectoryPath = WORKING_DIRECTORY)
 {
-    ExtractCommandAndArgs(cmdCommandTextString, out string command,
+    ExtractCommandAndArgs(commandTextString, out string command,
         out List<string> args);
     string commandArgsAsString = ConvertCommandArgsToLargeString(args);
-    string cmdCommandFilePath = CreateBatchFile(command);
-
+    string commandFilePath = 
+        CreateCommandFile(cmdOrPsOrCustomFileExtension, command);
+    
     var process = new Process();
 
     process.StartInfo.WorkingDirectory = workingDirectoryPath;
-    process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
-    //process.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";  
-    process.StartInfo.Verb = "runas"; // Run as administrator.
-    process.StartInfo.Arguments =
-        "/c " + $"{cmdCommandFilePath}{commandArgsAsString}";
+
+    if (cmdOrPsOrCustomPathToExecutable == "cmd")
+    {
+        process.StartInfo.FileName = @"C:\Windows\System32\cmd.exe";
+    }
+    else if (cmdOrPsOrCustomPathToExecutable == "ps")
+    {
+        process.StartInfo.FileName =
+            @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
+    }
+    else { process.StartInfo.FileName = cmdOrPsOrCustomPathToExecutable; }
+
+    // process.StartInfo.Verb = "runas"; // Run as administrator.
+
+    if (cmdOrPsOrCustomPathToExecutable == "ps")
+    {
+        process.StartInfo.Arguments =
+            "/c " + $"Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; {commandFilePath}{commandArgsAsString}";
+    }
+    else
+    {
+        process.StartInfo.Arguments =
+            "/c " + $"{commandFilePath}{commandArgsAsString}";
+    }
+
     process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
     process.StartInfo.UseShellExecute = false;
@@ -105,31 +130,32 @@ async Task<string> RunCmdCommand(string cmdCommandTextString,
 
     string output = process.StandardOutput.ReadToEnd();
     string err = process.StandardError.ReadToEnd();
+    // Console.WriteLine(process); // DEBUG.
 
     process.WaitForExit();
 
     // Update the exit-code variable.
-    CMD_COMMAND_EXIT_CODE = process.ExitCode;
+    COMMAND_EXIT_CODE = process.ExitCode;
 
     // Delete the command file after its use.
-    DeleteFile(cmdCommandFilePath);
+    DeleteFile(commandFilePath);
 
     return output + err;
 }
 
-void ExtractCommandAndArgs(string cmdCommandTextString, out string command,
-    out List<string> args)
+void ExtractCommandAndArgs(string commandTextString,
+    out string command, out List<string> args)
 {
     string flag = @"&ARGS[]=";
-    command = cmdCommandTextString;
+    command = commandTextString;
     args = new List<string>();
-    if (!cmdCommandTextString.Contains(flag)) { return; }
+    if (!commandTextString.Contains(flag)) { return; }
 
 
     // There are arguments in the given command, we need to extract them.
-    int firstArgIndex = cmdCommandTextString.IndexOf(flag);
-    command = cmdCommandTextString.Substring(0, firstArgIndex);
-    string argsAsString = cmdCommandTextString.Substring(firstArgIndex);
+    int firstArgIndex = commandTextString.IndexOf(flag);
+    command = commandTextString.Substring(0, firstArgIndex);
+    string argsAsString = commandTextString.Substring(firstArgIndex);
 
     while (true)
     {
@@ -167,18 +193,29 @@ string ConvertCommandArgsToLargeString(List<string> args)
 /// <summary>
 ///     Private. Use with caution.
 /// </summary>
-string CreateBatchFile(string command,
+string CreateCommandFile(string cmdOrPsOrCustomFileExtension, string command,
     string workingDirectoryPath = "",
-    string cmdCommandFileName = CMD_COMMAND_FILE_NAME)
+    string commandFileNameWithoutExtension = CMD_COMMAND_FILE_NAME)
 {
+    string fileExtension = cmdOrPsOrCustomFileExtension;
+    if (cmdOrPsOrCustomFileExtension == "cmd")
+    {
+        fileExtension = ".bat";
+    }
+    else if (cmdOrPsOrCustomFileExtension == "ps")
+    {
+        fileExtension = ".ps1";
+    }
+
     if (workingDirectoryPath == "")
     {
         workingDirectoryPath = Directory.GetCurrentDirectory();
     }
 
     // Create the file, or overwrite if the file exists.
-    string cmdCommandFilePath = $"{workingDirectoryPath}/{cmdCommandFileName}";
-    using (FileStream fileStream = File.Create(cmdCommandFilePath))
+    string commandFilePath 
+        = $"{workingDirectoryPath}/{commandFileNameWithoutExtension}{fileExtension}";
+    using (FileStream fileStream = File.Create(commandFilePath))
     {
 
         // Create content to the file.
@@ -188,7 +225,7 @@ string CreateBatchFile(string command,
         fileStream.Write(fileContent, 0, fileContent.Length);
     }
 
-    return cmdCommandFilePath;
+    return commandFilePath;
 }
 
 void DeleteFile(string cmdCommandFileName)
