@@ -402,4 +402,7 @@ FodyWeavers.xsd
 
 db-vcs-ci-server-command*
 
+# In case the upload of "import-db" was aborted.
+ghost*
+
 # ----------- db-vcs-ci-server -------------
