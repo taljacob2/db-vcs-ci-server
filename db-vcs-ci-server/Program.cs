@@ -45,10 +45,10 @@ app.MapPost("/api/execute-command",
     async (HttpContext context, HttpRequest request, string workingDirectory,
     string cmdOrPsOrCustomPathToExecutable, string cmdOrPsOrCustomFileExtension) =>
     {
-        if (workingDirectory == null)
-        {
 
-            // Default working-directory is `WORKING_DIRECTORY`.
+        // Configure default working-directory.
+        if (workingDirectory == String.Empty)
+        {
             workingDirectory = WORKING_DIRECTORY;
         }
 
@@ -62,8 +62,10 @@ app.MapPost("/api/execute-command",
             string commandTextString = await reader.ReadToEndAsync();
 
             // Create an empty directory for the requested working-directory.
-            commandOutput += Environment.NewLine;
-            commandOutput += await RunCommand("cmd", "cmd", $"mkdir {workingDirectory}");
+            if (!Directory.Exists(workingDirectory))
+            {
+                Directory.CreateDirectory(workingDirectory);
+            }
 
             // Execute the raw command given.
             commandOutput += Environment.NewLine;
@@ -97,7 +99,7 @@ async Task<string> RunCommand(string cmdOrPsOrCustomPathToExecutable,
         out List<string> args);
     string commandArgsAsString = ConvertCommandArgsToLargeString(args);
     string commandFilePath = 
-        CreateCommandFile(cmdOrPsOrCustomFileExtension, command);
+        CreateCommandFile(cmdOrPsOrCustomFileExtension, command, String.Empty);
     
     var process = new Process();
 
@@ -205,7 +207,7 @@ string ConvertCommandArgsToLargeString(List<string> args)
 ///     Private. Use with caution.
 /// </summary>
 string CreateCommandFile(string cmdOrPsOrCustomFileExtension, string command,
-    string workingDirectoryPath = "",
+    string workingDirectoryPath,
     string commandFileNameWithoutExtension = CMD_COMMAND_FILE_NAME)
 {
     string fileExtension = cmdOrPsOrCustomFileExtension;
@@ -218,14 +220,14 @@ string CreateCommandFile(string cmdOrPsOrCustomFileExtension, string command,
         fileExtension = ".ps1";
     }
 
-    if (workingDirectoryPath == "")
+    if (workingDirectoryPath == String.Empty)
     {
         workingDirectoryPath = Directory.GetCurrentDirectory();
     }
 
     // Create the file, or overwrite if the file exists.
     string commandFilePath 
-        = $"{workingDirectoryPath}/{commandFileNameWithoutExtension}{fileExtension}";
+        = Path.Combine(workingDirectoryPath, commandFileNameWithoutExtension + fileExtension);
     using (FileStream fileStream = File.Create(commandFilePath))
     {
 
@@ -262,48 +264,36 @@ IResult ShareFileDownload(string filePathToShare, string mimeType)
 
 
 app.MapPost("/api/upload-file",
-    async (HttpContext context, HttpRequest request, string workingDirectory) =>
+    async (HttpContext context, HttpRequest request, string workingDirectory,
+    string fileNameToBeInServerWorkingDirectory) =>
     {
-        if (workingDirectory == null)
-        {
 
-            // Default working-directory is `WORKING_DIRECTORY`.
+        // Configure default working-directory.
+        if (workingDirectory == String.Empty)
+        {
             workingDirectory = WORKING_DIRECTORY;
         }
 
-        using (var reader = new BinaryReader(request.Body)
+        // Create an empty directory for the requested working-directory.
+        if (!Directory.Exists(workingDirectory))
         {
-
-            // Sumarizes all output.
-            string commandOutput = "";
-
-            // Read the raw file as a CMD `string` command.
-            string cmdCommandTextString = await reader.ReadToEndAsync();
-
-            // Create an empty directory for the requested working-directory.
-            commandOutput += Environment.NewLine;
-            commandOutput += await RunCmdCommand($"mkdir {workingDirectory}");
-
-            // Execute the raw command given.
-            commandOutput += Environment.NewLine;
-            commandOutput += await RunCmdCommand(cmdCommandTextString);
-
-            // Check result exitcode.
-            if (CMD_COMMAND_EXIT_CODE != 0)
-            {
-
-                // The command has exited with an error.
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                return context.Response.WriteAsync(commandOutput);
-            }
-            else
-            {
-
-                // Return the raw output of the command.
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                return context.Response.WriteAsync(commandOutput);
-            }
+            Directory.CreateDirectory(workingDirectory);
         }
-    }).Accepts<IFormFile>("application/octet-stream");
+
+        string filePathToBeInServerWorkingDirectory =
+            Path.Combine(workingDirectory, fileNameToBeInServerWorkingDirectory);
+
+        // Save the file as is.
+        using (var fileStream = new FileStream(
+            filePathToBeInServerWorkingDirectory, FileMode.Create))
+        {
+            await request.Body.CopyToAsync(fileStream);
+        }
+
+        // Return the raw output of the command.
+        context.Response.StatusCode = StatusCodes.Status201Created;
+        return context.Response
+        .WriteAsync($"File Created: {filePathToBeInServerWorkingDirectory}");
+    }).Accepts<IFormFile>("*/*");
 
 app.Run();
