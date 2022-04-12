@@ -22,9 +22,16 @@ app.UseHttpsRedirection();
 
 // ---------- Controller ---------- 
 
+// ----- Global Variables -----
+
 const string WORKING_DIRECTORY = @"C:\Windows\System32";
 int COMMAND_EXIT_CODE = 0;
+
+// Make sure it is ignored it `.gitignore`.
 const string CMD_COMMAND_FILE_NAME = "db-vcs-ci-server-command";
+
+// ----- Global Variables -----
+
 
 /// <summary>
 ///     For tests.
