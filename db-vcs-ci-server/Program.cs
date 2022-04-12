@@ -159,20 +159,24 @@ void ExtractCommandAndArgs(string commandTextString,
 
     while (true)
     {
-        string argsAsStringWithoutFirstArg =
+        string argsAsStringWithoutFirstArgFlag =
             argsAsString.Substring(flag.Length);
-        string arg = argsAsStringWithoutFirstArg;
+        string argValue = argsAsStringWithoutFirstArgFlag;
 
-        if (argsAsStringWithoutFirstArg.Contains(flag))
+        if (argsAsStringWithoutFirstArgFlag.Contains(flag))
         {
-            arg = argsAsStringWithoutFirstArg.Substring(0,
-                argsAsStringWithoutFirstArg.IndexOf(flag));
+            argValue = argsAsStringWithoutFirstArgFlag.Substring(0,
+                argsAsStringWithoutFirstArgFlag.IndexOf(flag));
         }
 
-        args.Add(arg); // Insert the extracted arg to list.
+        // Insert the extracted `argValue` to list.
+        args.Add(argValue);
 
-        argsAsString = argsAsString.Substring(flag.Length + arg.Length);
-        if (argsAsStringWithoutFirstArg.Length - arg.Length == 0)
+        // Step ahead.
+        argsAsString = argsAsString.Substring(flag.Length + argValue.Length);
+
+        // Check for stop condition.
+        if (argsAsStringWithoutFirstArgFlag.Length - argValue.Length == 0)
         {
             break;
         }
